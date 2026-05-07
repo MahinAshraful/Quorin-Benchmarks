@@ -1,0 +1,63 @@
+[project]
+name = "quorin-benchmarks"
+version = "0.1.0"
+description = "Comparative benchmarks: Quorin vs. Redis HGETALL / Python dict / stdlib shm / etc."
+authors = [{ name = "Mahin Ashraful" }]
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+
+# Phase-1 dependencies pinned exactly so a future re-run reproduces.
+# Phase-2 adapters add their own optional groups (see [project.optional-dependencies]).
+dependencies = [
+  "quorin==0.1.0",
+  "numpy>=1.26,<2.0",
+  "redis==5.0.8",
+  "msgpack==1.0.8",
+  # quorin pulls posix-ipc, numba, etc. transitively; re-pin here so
+  # we fail fast if quorin's solve drifts.
+  "posix-ipc>=1.1,<2.0",
+]
+
+[project.optional-dependencies]
+phase2 = [
+  # Stubs only in Phase 1; uncomment per-adapter when implementing.
+  # "ray>=2.10",
+  # "feast==0.40.1",
+  # "lmdb==1.5.1",
+  # "pymemcache==4.0.0",
+]
+dev = [
+  "ruff==0.6.9",
+  "mypy==1.11.2",
+  "pytest==8.3.3",
+]
+
+[project.scripts]
+qbench-matrix = "runners.matrix_runner:main"
+qbench-render = "analysis.render_table:main"
+qbench-hardware = "runners.hardware_collector:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["benchscripts", "stores", "scenarios", "runners", "analysis"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "PLC", "PLR", "RUF", "UP"]
+ignore = [
+  "PLR0913",  # too-many-arguments — bench code legitimately has many knobs
+  "PLR2004",  # magic-value comparisons fine in benchmarks
+  "PLR0915",  # too-many-statements — long timed loops
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = false
+ignore_missing_imports = true
