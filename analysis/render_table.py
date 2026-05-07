@@ -53,7 +53,10 @@ def _hardware_header(hw_data: dict[str, Any]) -> str:
     venue = "WSL2" if is_wsl2 else "native Linux"
     pkgs = hw_data.get("package_versions", {})
     quorin = pkgs.get("quorin", "<not installed>")
-    py = hw_data.get("python_version", "?").splitlines()[0]
+    # sys.version starts with "X.Y.Z (...)..."; the first whitespace-separated
+    # token is the version. Avoid splitting inside the parenthesized fields.
+    py_raw = hw_data.get("python_version", "?").splitlines()[0]
+    py_version = py_raw.split()[0] if py_raw and py_raw != "?" else "?"
     git = hw_data.get("git", {})
     git_line = ""
     if git.get("git_sha"):
@@ -64,7 +67,7 @@ def _hardware_header(hw_data: dict[str, Any]) -> str:
     return (
         f"_Venue: {venue} / kernel {kernel}{git_line}_\n\n"
         f"_CPU: {cpu} ({cpu_count} logical cores)_\n\n"
-        f"_Python: {py.split()[1] if ' ' in py else py}, quorin {quorin}_\n"
+        f"_Python: {py_version}, quorin {quorin}_\n"
     )
 
 
@@ -177,8 +180,8 @@ def render(hardware_dir: Path, *, scope: str = "full") -> str:
     lines.append(
         "_All numbers are `median(p99)` aggregated across N fresh subprocess runs "
         "(see `_matrix_summary.json` for N). Stores read float32 vectors of the same "
-        "canonical schema; see `progress/plan.md` § 'Per-store implementation notes' "
-        "for what each adapter is actually doing under the hood._\n"
+        "canonical schema; see each adapter's module docstring under `stores/` for "
+        "what each one is doing under the hood._\n"
     )
     return "\n".join(lines)
 

@@ -150,12 +150,13 @@ quorin-benchmarks/
 ├── analysis/               # JSON -> markdown table generator
 ├── results/<hw>/<scenario>/<store>.json   # all measurement data
 ├── docker/Dockerfile       # reproducible reference env
-├── progress/plan.md        # design document covering every load-bearing decision
 └── .github/workflows/      # benchmark_phase1.yml + benchmark_full_matrix.yml
 ```
 
-`progress/plan.md` is the canonical design document. Consult it
-before adding a store or a scenario.
+The README, the per-adapter docstrings in `stores/`, and the per-scenario
+docstrings in `scenarios/` carry the design rationale. Adapter and scenario
+files are reference implementations: copy the closest match when adding new
+ones.
 
 ---
 
