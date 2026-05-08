@@ -1,5 +1,10 @@
 # quorin-benchmarks
 
+[![Phase 1 benchmark](https://github.com/MahinAshraful/quorin-benchmarks/actions/workflows/benchmark_phase1.yml/badge.svg)](.github/workflows/benchmark_phase1.yml)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
+[![Platform: Linux/WSL2](https://img.shields.io/badge/platform-Linux%20%7C%20WSL2-lightgrey.svg)](#)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](#license)
+
 Comparative benchmarks for the [`quorin`](https://pypi.org/project/quorin/)
 ML feature-serving library, against the alternatives a team picking a
 feature store today would actually consider.
@@ -9,6 +14,13 @@ are not used to gate Quorin's CI (Quorin has its own regression
 suite). Its purpose is the question every README reader arrives with:
 "how does this compare?"
 
+### TL;DR
+
+- **What it benchmarks:** Quorin vs. Redis HGETALL vs. in-process Python `dict` vs. stdlib `multiprocessing.shared_memory` on warm/cold reads, batch reads (10 → 10k), and a 95/5 mixed workload.
+- **How it runs:** N=20 fresh subprocesses per (scenario × store), `median(p99)` reported, never a max-of-max-of-max.
+- **Where:** Linux/WSL2, single-machine, all stores warm, no disk, no network beyond Redis on localhost.
+- **Try it:** `make install && docker run -d -p 6379:6379 redis:7 && make benchmark-ci && make summary` (~10 min).
+
 > **Linux/WSL2 only.** Same platform scope as Quorin itself.
 >
 > **Reporting policy.** All measurements are reported as observed.
@@ -17,6 +29,17 @@ suite). Its purpose is the question every README reader arrives with:
 > on a particular hardware class, the result table reflects that.
 > Bare-metal extrapolations appear only as footnotes, never as the
 > primary reported number.
+
+### Contents
+
+- [Headline comparison](#headline-comparison)
+- [What this measures (and what it does not)](#what-this-measures-and-what-it-does-not)
+- [Reproducing the numbers](#reproducing-the-numbers)
+- [Repo layout](#repo-layout)
+- [Methodology rigor](#methodology-rigor-mirrors-quorins-adr-015)
+- [Adding a store](#adding-a-store-phase-2-expansion) · [Adding a scenario](#adding-a-scenario)
+- [Layout of `results/`](#layout-of-results)
+- [License](#license)
 
 ---
 
@@ -28,12 +51,11 @@ The table below is regenerated from the result JSONs in
 (operator runs). Methodology details below.
 
 <!-- BEGIN HEADLINE TABLE -->
-_Run `make benchmark` then `python -m analysis.render_table --scope
-headline` to populate this section. The table compares Quorin,
-Redis HGETALL, Python in-process dict, and stdlib `multiprocessing.shared_memory`
-across `single_read` (warm + cold), `batch_read` (n=100, n=1000), and
-`mixed_workload` (95% read / 5% write, full throttle) on the venue
-listed in `_hardware.json`._
+_Populate this section with `make benchmark && make readme-table`. The
+table compares Quorin, Redis HGETALL, Python in-process `dict`, and
+stdlib `multiprocessing.shared_memory` across `single_read` (warm + cold),
+`batch_read` (n=100, n=1000), and `mixed_workload` (95% read / 5% write,
+full throttle) on the venue listed in `_hardware.json`._
 <!-- END HEADLINE TABLE -->
 
 The `inprocess_dict` column is the latency floor — the best a
@@ -101,25 +123,26 @@ cd quorin-benchmarks
 docker run -d --name qbench-redis -p 6379:6379 redis:7
 
 # 3. Install Python deps
-python -m pip install -e .
+make install
 
 # 4. Run the full Phase-1 N=20 matrix (~20 min on ubuntu-latest)
 make benchmark
 
-# 5. Render the markdown summary
+# 5. Render the markdown summary, then open results/<hardware>/summary.md
 make summary
-
-# 6. Open results/<hardware>/summary.md
 ```
 
-`make benchmark NUM_RUNS=5` runs the CI-scoped N=5 matrix instead
-(approximately 5 min). N=20 is the published-number configuration;
-N=5 is intended only for fast regression detection in CI.
+For a faster regression check, `make benchmark-ci` runs the N=5 matrix
+(~5 min). N=20 is the published-number configuration; N=5 is intended
+only for fast regression detection in CI.
 
 ### Via Docker
 
 ```bash
-docker compose -f docker/docker-compose.yml up -d redis  # if you have it
+# Start Redis (skip if you already have one on localhost:6379)
+docker run -d --name qbench-redis -p 6379:6379 redis:7
+
+# Build and run the benchmarks; results land in ./results
 docker build -t quorin-benchmarks -f docker/Dockerfile .
 docker run --rm --shm-size=2g \
   --network host \
